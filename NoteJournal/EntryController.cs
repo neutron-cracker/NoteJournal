@@ -1,0 +1,48 @@
+﻿using System.Net;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+
+namespace NoteJournal;
+
+[ApiController]
+[Route("api/entries")]
+public class EntryController(JournalDbContext dbContext) : ControllerBase
+{
+    [HttpGet("all")]
+    public async Task<IActionResult> GetAll()
+    {
+        var items = await dbContext.JournalEntries
+            .AsNoTracking()
+            .ToListAsync();
+
+        return Ok(items);
+    }
+
+    [HttpPost]
+    public async Task<IActionResult> CreateEntry([FromBody] JournalEntryDTO entry)
+    {
+        var existingItem = await dbContext.JournalEntries
+            .FirstOrDefaultAsync(x => x.GuidId == entry.GuidId);
+        
+        if (existingItem == null)
+        {
+            dbContext.Add(entry);
+        }
+        else
+        {
+            existingItem.Content = entry.Content;
+            existingItem.Name = entry.Name;
+        }
+
+        await dbContext.SaveChangesAsync();
+
+        return Ok();
+    }
+
+    [HttpDelete("{id:guid}")]
+    public async Task<IActionResult> Delete(Guid id)
+    {
+        await dbContext.JournalEntries.FirstOrDefaultAsync(x => x.GuidId == id);
+        return StatusCode((int)HttpStatusCode.InternalServerError);
+    }
+}
